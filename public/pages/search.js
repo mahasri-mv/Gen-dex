@@ -12,7 +12,7 @@ export class SearchPage {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.activeDataset = null;
-        this.currentPattern = "ATT";
+        this.currentPattern = "";
         this.searchResult = null;
         this.page = 1;
         this.perPage = 10;
@@ -133,9 +133,9 @@ export class SearchPage {
                         </div>
 
                         <div class="search-examples-group" style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); flex-wrap: wrap;">
-                            <span style="font-weight: 600;">Quick Examples (click to search):</span>
+                            <span style="font-weight: 600;">Quick Examples:</span>
                             ${quickExamples.map(ex => `
-                                <span class="example-pill btn-example-query" data-query="${ex.query}" title="Search '${ex.query}'">${ex.label}</span>
+                                <span class="example-pill btn-example-query" data-query="${ex.query}" title="Select '${ex.query}'">${ex.label}</span>
                             `).join('')}
                         </div>
                     </div>
@@ -157,11 +157,6 @@ export class SearchPage {
         `;
 
         this.bindEvents();
-
-        // Run initial search if active dataset and query are set
-        if (this.currentPattern && this.activeDataset && (this.activeDataset.isLoaded || this.activeDataset.indexLoaded)) {
-            await this.performSearch(this.currentPattern);
-        }
     }
 
     getDatasetQuickExamples() {
@@ -204,7 +199,7 @@ export class SearchPage {
                 <div style="font-size: 2.2rem; margin-bottom: 8px;">🔍</div>
                 <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-heading); margin-bottom: 6px;">Ready to Search</div>
                 <div style="font-size: 0.88rem; max-width: 500px; margin: 0 auto; line-height: 1.5;">
-                    Enter a DNA sequence pattern above to discover matching reads and identify exact sequence coordinates.
+                    Enter a DNA sequence pattern above and click the <strong>Search</strong> button to discover matching reads and identify exact sequence coordinates.
                 </div>
             </div>
         `;
@@ -265,15 +260,15 @@ export class SearchPage {
             this.searchRevComp = e.target.checked;
         });
 
-        // Quick Examples and Recent Searches clicks (immediately execute search)
-        this.container.addEventListener('click', async (e) => {
+        // Quick Examples and Recent Searches clicks (populates input so user can click Search)
+        this.container.addEventListener('click', (e) => {
             const pill = e.target.closest('[data-query]');
             if (pill) {
                 const q = pill.getAttribute('data-query');
                 if (q) {
                     input.value = q;
                     this.validateInputLive(q);
-                    await this.performSearch(q);
+                    input.focus();
                 }
                 return;
             }
