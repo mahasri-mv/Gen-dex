@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/src/main/resources/web/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/src/main/resources/web/$1"
+    }
+  ]
+}
