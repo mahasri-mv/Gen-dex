@@ -1,0 +1,324 @@
+/* =============================================================================
+   GeneDex Layout & Structural Styling
+   ============================================================================= */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    background-color: var(--bg-page);
+    color: var(--text-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+/* =============================================================================
+   Sticky Top Navbar
+   ============================================================================= */
+.app-navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.navbar-container {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+/* Left: Branding */
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.brand-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.brand-title-text {
+    font-size: 1.32rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    display: flex;
+    align-items: baseline;
+}
+
+.brand-gene {
+    color: var(--text-heading);
+}
+
+.brand-dex {
+    color: var(--brand-green);
+    margin-left: 1px;
+}
+
+/* Center: Primary Navigation Links */
+.navbar-menu {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    list-style: none;
+    flex-wrap: nowrap;
+}
+
+.nav-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.nav-link:hover {
+    color: var(--text-heading);
+    background: var(--bg-surface-alt);
+}
+
+.nav-link.active {
+    color: var(--brand-green);
+    font-weight: 700;
+}
+
+.nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -13px;
+    left: 12px;
+    right: 12px;
+    height: 2.5px;
+    background: var(--brand-green);
+    border-radius: 2px;
+}
+
+.nav-link.admin-link {
+    color: var(--brand-amber);
+}
+
+.nav-link.admin-link.active {
+    color: var(--brand-amber);
+}
+
+.nav-link.admin-link.active::after {
+    background: var(--brand-amber);
+}
+
+/* Right: Action Area */
+.navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+/* Prominent Upload CTA */
+.btn-nav-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--brand-green);
+    color: #ffffff;
+    font-size: 0.84rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+    transition: var(--transition);
+}
+
+.btn-nav-upload:hover {
+    background: var(--brand-green-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+}
+
+/* Notification Bell */
+.btn-nav-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    position: relative;
+    transition: var(--transition);
+}
+
+.btn-nav-icon:hover {
+    color: var(--text-heading);
+    border-color: #cbd5e1;
+    background: var(--bg-surface-alt);
+}
+
+.notification-dot {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--brand-green);
+    box-shadow: 0 0 0 2px #ffffff;
+}
+
+/* Mobile Hamburger Toggle */
+.btn-mobile-toggle {
+    display: none;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    color: var(--text-heading);
+    background: #ffffff;
+}
+
+/* Responsive Navigation Bar */
+@media (max-width: 1080px) {
+    .navbar-menu {
+        display: none;
+    }
+    .navbar-menu.mobile-open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 64px;
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        border-bottom: 1px solid var(--border-color);
+        padding: 16px 24px;
+        gap: 8px;
+        box-shadow: var(--shadow-dropdown);
+    }
+    .nav-link.active::after {
+        display: none;
+    }
+    .btn-mobile-toggle {
+        display: inline-flex;
+    }
+}
+
+/* =============================================================================
+   Main View Mount Container
+   ============================================================================= */
+.app-main-layout {
+    min-height: calc(100vh - 64px - 140px);
+    width: 100%;
+}
+
+.page-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px 64px 24px;
+}
+
+/* =============================================================================
+   Universal Footer (Disabled per user requirement)
+   ============================================================================= */
+.app-footer {
+    display: none !important;
+}
+
+.footer-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.footer-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-heading);
+}
+
+.footer-credits {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.powered-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--bg-page);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.powered-badge strong {
+    color: var(--brand-green);
+    font-weight: 700;
+}
