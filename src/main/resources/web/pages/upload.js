@@ -926,7 +926,7 @@ export class UploadPage {
                     const uploadedName = res.datasetName || file.name;
                     this.saveFileSize(uploadedName, file.size);
                     Toast.success("Your dataset has been added successfully and is ready for analysis.");
-                    await this.sleep(700);
+                    await this.sleep(1400);
                     this.selectedFile = null;
                     await this.render();
                 } else {
@@ -1013,7 +1013,7 @@ export class UploadPage {
                 const uploadedName = res.datasetName || (rawName.endsWith('.fastq') ? rawName : rawName + '.fastq');
                 this.saveFileSize(uploadedName, byteSize);
                 Toast.success("Your dataset has been added successfully and is ready for analysis.");
-                await this.sleep(700);
+                await this.sleep(1400);
                 this.pastedText = '';
                 this.pastedName = '';
                 await this.render();

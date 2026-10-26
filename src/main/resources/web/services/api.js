@@ -62,14 +62,21 @@ class ApiService {
             headers['Authorization'] = 'Bearer ' + this.token;
         }
 
+        // Add 12-second abort timeout to prevent UI hangs if edge proxy or slow uplink stalls on large payloads
+        const controller = new AbortController();
+        const timeoutMs = options.timeoutMs || 12000;
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
         const config = {
             ...options,
             headers: headers,
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            signal: controller.signal
         };
 
         try {
             const response = await fetch(endpoint, config);
+            clearTimeout(timer);
             const contentType = response.headers.get("content-type") || "";
 
             if (response.ok && contentType.includes("application/json")) {
@@ -80,7 +87,7 @@ class ApiService {
                 const text = await response.text();
                 return { success: true, rawText: text, status: response.status };
             } else if (response.status === 404 || !response.ok) {
-                // If backend returned 404 on /api/ (e.g. running on Vercel without a Java daemon), route through client-side engine!
+                // If backend returned error / 404 / 413 (e.g. payload exceeded proxy limits or serverless mode), route through client-side genomic engine!
                 const fallback = this.handleFallbackRequest(endpoint, options);
                 if (fallback !== null) return fallback;
 
@@ -88,7 +95,8 @@ class ApiService {
                 return { success: false, rawText: text, status: response.status };
             }
         } catch (err) {
-            // Live Java backend not reachable -> use in-browser genomic engine!
+            clearTimeout(timer);
+            // Live Java backend not reachable, timeout, or proxy disconnection -> use in-browser genomic engine!
             const fallback = this.handleFallbackRequest(endpoint, options);
             if (fallback !== null) return fallback;
             return { success: false, error: "Network or Server error: " + err.message };
@@ -545,17 +553,28 @@ class ApiService {
                 const readCount = Math.max(1, reads.length);
                 let totalBases = 0;
                 let gCount = 0, cCount = 0, aCount = 0, tCount = 0, nCount = 0;
-                reads.forEach(r => {
-                    totalBases += r.length;
-                    for (let ch of r) {
+                let minLen = Infinity, maxLen = 0;
+
+                for (let i = 0; i < reads.length; i++) {
+                    const r = reads[i];
+                    const len = r.length;
+                    totalBases += len;
+                    if (len < minLen) minLen = len;
+                    if (len > maxLen) maxLen = len;
+                    for (let j = 0; j < len; j++) {
+                        const ch = r[j];
                         if (ch === 'G') gCount++;
                         else if (ch === 'C') cCount++;
                         else if (ch === 'A') aCount++;
                         else if (ch === 'T') tCount++;
                         else nCount++;
                     }
-                });
+                }
+                if (minLen === Infinity) minLen = 7;
+                if (maxLen === 0) maxLen = 7;
+
                 const gcPct = totalBases > 0 ? Math.round(((gCount + cCount) / totalBases) * 10000) / 100 : 45.0;
+                const avgLen = readCount > 0 ? Math.round((totalBases / readCount) * 10) / 10 : 7.0;
 
                 const newDs = {
                     id: "ds_" + Math.random().toString(16).substring(2, 10),
@@ -574,9 +593,9 @@ class ApiService {
                         totalReads: readCount,
                         totalIndexedSymbols: totalBases + readCount,
                         totalDnaBases: totalBases,
-                        minReadLength: reads.length > 0 ? Math.min(...reads.map(r => r.length)) : 7,
-                        maxReadLength: reads.length > 0 ? Math.max(...reads.map(r => r.length)) : 7,
-                        avgReadLength: reads.length > 0 ? Math.round(totalBases / readCount * 10) / 10 : 7.0,
+                        minReadLength: minLen,
+                        maxReadLength: maxLen,
+                        avgReadLength: avgLen,
                         baseCounts: { A: aCount, C: cCount, G: gCount, T: tCount, N: nCount, "#": readCount },
                         overallGcPercentage: gcPct
                     }

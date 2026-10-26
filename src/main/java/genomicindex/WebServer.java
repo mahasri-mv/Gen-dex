@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.Executors;
 
 /**
  * Enterprise Genomic Web Server with Role-Based Access Control (RBAC),
@@ -121,7 +122,7 @@ public class WebServer {
         // --- Static UI ---
         server.createContext("/", new StaticFileHandler());
 
-        server.setExecutor(null);
+        server.setExecutor(Executors.newFixedThreadPool(16));
         server.start();
     }
 
