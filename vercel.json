@@ -2,6 +2,10 @@
   "cleanUrls": false,
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://gen-dex.onrender.com/api/$1"
+    },
+    {
       "source": "/",
       "destination": "/public/index.html"
     },
