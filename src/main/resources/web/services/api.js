@@ -23,14 +23,21 @@ class ApiService {
         this.token = "";
         this.currentUser = null;
         this.activeDataset = null;
+        this.fallbackActiveId = null;
         this.datasetChangeListeners = [];
 
-        // Restore saved session token and user from localStorage if present
+        // Restore saved session token, guest session, and user from localStorage if present
         try {
             const savedToken = localStorage.getItem('genedex_token');
             if (savedToken) this.token = savedToken;
             const savedUser = localStorage.getItem('genedex_user');
             if (savedUser) this.currentUser = JSON.parse(savedUser);
+            let sToken = localStorage.getItem('genedex_session_token');
+            if (!sToken) {
+                sToken = 'sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+                localStorage.setItem('genedex_session_token', sToken);
+            }
+            this.sessionToken = sToken;
         } catch (e) {
             console.warn("Could not read localStorage session:", e);
         }
@@ -58,9 +65,9 @@ class ApiService {
         if (this.csrfToken) {
             headers['X-CSRF-Token'] = this.csrfToken;
         }
-        if (this.token) {
-            headers['Authorization'] = 'Bearer ' + this.token;
-        }
+        const effectiveToken = this.token || this.sessionToken || 'guest_default';
+        headers['Authorization'] = 'Bearer ' + effectiveToken;
+        headers['X-Session-Token'] = effectiveToken;
 
         // Add 12-second abort timeout to prevent UI hangs if edge proxy or slow uplink stalls on large payloads
         const controller = new AbortController();
@@ -123,14 +130,69 @@ class ApiService {
     // Dataset Management Endpoints
     // =========================================================================
     async getDatasets() {
-        const res = await this.get('/api/datasets');
-        if (res && res.success && res.activeDataset) {
+        let res = null;
+        try {
+            res = await this.get('/api/datasets');
+        } catch (e) {}
+
+        if (!res || !res.success) {
+            res = this.handleFallbackRequest('/api/datasets', { method: 'GET' });
+        }
+
+        // Merge any user-uploaded datasets from this.fallbackDatasets so they ALWAYS show up!
+        const backendDatasets = (res && res.datasets) ? [...res.datasets] : [];
+        const existingNames = new Set(backendDatasets.map(d => d.name));
+        const existingIds = new Set(backendDatasets.map(d => d.id));
+
+        if (this.fallbackDatasets && this.fallbackDatasets.length > 0) {
+            for (const fbDs of this.fallbackDatasets) {
+                // If it's a user upload (not the built-in demo_report) and not already in backend list
+                if (fbDs.id !== "ds_demo_report" && !existingNames.has(fbDs.name) && !existingIds.has(fbDs.id)) {
+                    backendDatasets.unshift({
+                        id: fbDs.id,
+                        name: fbDs.name,
+                        source: fbDs.source || "Uploaded File",
+                        reads: fbDs.totalReads,
+                        totalReads: fbDs.totalReads,
+                        symbols: fbDs.totalSymbols,
+                        totalSymbols: fbDs.totalSymbols,
+                        totalBases: fbDs.totalBases,
+                        isActive: fbDs.id === this.fallbackActiveId || fbDs.name === (this.activeDataset && (this.activeDataset.name || this.activeDataset.datasetName))
+                    });
+                }
+            }
+        }
+
+        res.datasets = backendDatasets;
+
+        // Ensure active dataset is properly selected and reflected
+        if (this.fallbackActiveId) {
+            const activeFb = this.fallbackDatasets ? this.fallbackDatasets.find(d => d.id === this.fallbackActiveId) : null;
+            if (activeFb) {
+                this.activeDataset = activeFb.statistics || activeFb;
+                res.activeDataset = this.activeDataset;
+                res.datasets.forEach(d => {
+                    d.isActive = (d.id === this.fallbackActiveId || d.name === (this.activeDataset.datasetName || this.activeDataset.name));
+                });
+            }
+        } else if (res.activeDataset) {
             this.activeDataset = res.activeDataset;
         }
+
         return res;
     }
 
     async setActiveDataset(datasetId) {
+        this.fallbackActiveId = datasetId;
+        try { localStorage.setItem('genedex_active_dataset_id', datasetId); } catch (e) {}
+
+        const matchedFb = this.fallbackDatasets ? this.fallbackDatasets.find(d => d.id === datasetId) : null;
+        if (matchedFb) {
+            this.activeDataset = matchedFb.statistics || matchedFb;
+            this.notifyDatasetChange(this.activeDataset);
+            return { success: true, activeDataset: this.activeDataset };
+        }
+
         const res = await this.post('/api/datasets/active', { datasetId });
         if (res && res.success) {
             await this.getDatasets();
@@ -148,6 +210,10 @@ class ApiService {
         }
         const res = await this.post('/api/datasets', payload);
         if (res && res.success) {
+            if (res.datasetId) {
+                this.fallbackActiveId = res.datasetId;
+                try { localStorage.setItem('genedex_active_dataset_id', res.datasetId); } catch (e) {}
+            }
             await this.getDatasets();
             this.notifyDatasetChange(this.activeDataset);
         }
@@ -164,14 +230,24 @@ class ApiService {
     }
 
     async deleteDataset(datasetId = null) {
+        if (datasetId) {
+            this.fallbackDatasets = (this.fallbackDatasets || []).filter(d => d.id !== datasetId);
+            if (this.fallbackActiveId === datasetId) {
+                this.fallbackActiveId = null;
+                try { localStorage.removeItem('genedex_active_dataset_id'); } catch (e) {}
+            }
+            try {
+                const list = JSON.parse(localStorage.getItem('genedex_local_datasets') || '[]');
+                const filtered = list.filter(d => d.id !== datasetId);
+                localStorage.setItem('genedex_local_datasets', JSON.stringify(filtered));
+            } catch (e) {}
+        }
         let endpoint = '/api/datasets';
         if (datasetId) endpoint += '?id=' + encodeURIComponent(datasetId);
         const res = await this.request(endpoint, { method: 'DELETE' });
-        if (res && res.success) {
-            await this.getDatasets();
-            this.notifyDatasetChange(this.activeDataset);
-        }
-        return res;
+        await this.getDatasets();
+        this.notifyDatasetChange(this.activeDataset);
+        return res || { success: true };
     }
 
     async getActiveDatasetStatus() {
@@ -431,6 +507,51 @@ class ApiService {
                 }
             }
         ];
+
+        // Restore any user-uploaded datasets previously saved in localStorage
+        try {
+            const saved = JSON.parse(localStorage.getItem('genedex_local_datasets') || '[]');
+            for (let i = saved.length - 1; i >= 0; i--) {
+                const s = saved[i];
+                if (!this.fallbackDatasets.some(d => d.name === s.name || d.id === s.id)) {
+                    this.fallbackDatasets.unshift({
+                        ...s,
+                        reads: s.reads || s.sampleReads || ["GATTACA"],
+                        headers: s.headers || s.sampleHeaders || ["@read0"],
+                        qualities: s.qualities || s.sampleQualities || ["IIIIIII"]
+                    });
+                }
+            }
+            const activeId = localStorage.getItem('genedex_active_dataset_id');
+            if (activeId && this.fallbackDatasets.some(d => d.id === activeId)) {
+                this.fallbackActiveId = activeId;
+            }
+        } catch (e) {}
+    }
+
+    saveLocalDataset(ds) {
+        try {
+            const list = JSON.parse(localStorage.getItem('genedex_local_datasets') || '[]');
+            const meta = {
+                id: ds.id,
+                name: ds.name,
+                source: ds.source || "Uploaded File",
+                totalReads: ds.totalReads,
+                readsCount: ds.totalReads,
+                totalSymbols: ds.totalSymbols,
+                totalBases: ds.totalBases,
+                statistics: ds.statistics,
+                sampleReads: ds.reads ? ds.reads.slice(0, 50) : [],
+                sampleHeaders: ds.headers ? ds.headers.slice(0, 50) : [],
+                sampleQualities: ds.qualities ? ds.qualities.slice(0, 50) : []
+            };
+            const filtered = list.filter(d => d.name !== ds.name && d.id !== ds.id);
+            filtered.unshift(meta);
+            localStorage.setItem('genedex_local_datasets', JSON.stringify(filtered.slice(0, 10)));
+            localStorage.setItem('genedex_active_dataset_id', ds.id);
+        } catch (e) {
+            console.warn("Could not save to localStorage:", e);
+        }
     }
 
     getFallbackActiveDataset() {
@@ -604,6 +725,7 @@ class ApiService {
                 this.fallbackDatasets.unshift(newDs);
                 this.fallbackActiveId = newDs.id;
                 this.activeDataset = newDs;
+                this.saveLocalDataset(newDs);
                 return { success: true, datasetName: name, datasetId: newDs.id, stats: newDs.statistics };
             }
         }

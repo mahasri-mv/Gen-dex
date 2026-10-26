@@ -25,17 +25,17 @@ export class UploadPage {
         // Fetch datasets from centralized backend API
         await this.refreshDatasets();
 
-        const activeStats = this.activeDataset && this.activeDataset.statistics ? this.activeDataset.statistics : null;
-        const isReady = this.activeDataset && this.activeDataset.isLoaded !== false && this.activeDataset.totalReads > 0;
-        const activeDatasetName = this.activeDataset ? this.activeDataset.name : null;
+        const activeStats = this.activeDataset && this.activeDataset.statistics ? this.activeDataset.statistics : this.activeDataset;
+        const isReady = this.activeDataset && this.activeDataset.isLoaded !== false && ((this.activeDataset.totalReads || 0) > 0 || (activeStats && (activeStats.totalReads || 0) > 0));
+        const activeDatasetName = this.activeDataset ? (this.activeDataset.name || this.activeDataset.datasetName) : null;
 
         // Formatted statistics with strict singular/plural checking
-        const rawReads = this.activeDataset ? (this.activeDataset.totalReads || 0) : 0;
+        const rawReads = this.activeDataset ? (this.activeDataset.totalReads || (activeStats && activeStats.totalReads) || 0) : 0;
         const totalReadsStr = isReady 
             ? `${rawReads.toLocaleString()} ${rawReads === 1 ? 'read' : 'reads'}`
             : "Not available";
 
-        const rawBases = this.activeDataset ? (this.activeDataset.totalBases != null ? this.activeDataset.totalBases : (this.activeDataset.totalSymbols || 0)) : 0;
+        const rawBases = this.activeDataset ? (this.activeDataset.totalBases != null ? this.activeDataset.totalBases : (this.activeDataset.totalDnaBases || this.activeDataset.totalSymbols || (activeStats && (activeStats.totalDnaBases || activeStats.totalBases)) || 0)) : 0;
         const totalBasesStr = isReady ? `${rawBases.toLocaleString()} bp` : "Not available";
 
         // Average read length

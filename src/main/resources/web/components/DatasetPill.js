@@ -32,8 +32,9 @@ export class DatasetPill {
         if (!this.container) return;
 
         let activeName = "No Dataset";
-        if (this.activeDataset && this.activeDataset.name) {
-            activeName = this.activeDataset.name.split(' ')[0]; // short name
+        const fullName = this.activeDataset ? (this.activeDataset.name || this.activeDataset.datasetName) : null;
+        if (fullName) {
+            activeName = fullName.split(' ')[0]; // short name
         }
 
         let optionsHtml = '';
