@@ -51,9 +51,10 @@ export class SearchPage {
                 api.getReads(1, 100)
             ]);
 
-            const currentActiveName = (dsRes && dsRes.success && dsRes.activeDataset) ? dsRes.activeDataset.name : null;
+            const currentActiveName = (dsRes && dsRes.success && dsRes.activeDataset) ? (dsRes.activeDataset.name || dsRes.activeDataset.datasetName) : null;
             // If active dataset changed, reset stale search results
-            if (this.activeDataset && this.activeDataset.name !== currentActiveName) {
+            const prevActiveName = this.activeDataset ? (this.activeDataset.name || this.activeDataset.datasetName) : null;
+            if (prevActiveName && prevActiveName !== currentActiveName) {
                 this.searchResult = null;
                 this.readCache.clear();
             }
@@ -70,7 +71,7 @@ export class SearchPage {
             console.error('Error initializing search context:', err);
         }
 
-        const dsName = this.activeDataset ? this.activeDataset.name : 'No dataset active';
+        const dsName = this.activeDataset ? (this.activeDataset.name || this.activeDataset.datasetName) : 'No dataset active';
         const totalReads = this.activeDataset ? (this.activeDataset.totalReads || 0) : 0;
 
         // Dynamic Quick Examples relevant to active dataset
@@ -158,7 +159,7 @@ export class SearchPage {
         this.bindEvents();
 
         // Run initial search if active dataset and query are set
-        if (this.currentPattern && this.activeDataset && this.activeDataset.isLoaded) {
+        if (this.currentPattern && this.activeDataset && (this.activeDataset.isLoaded || this.activeDataset.indexLoaded)) {
             await this.performSearch(this.currentPattern);
         }
     }

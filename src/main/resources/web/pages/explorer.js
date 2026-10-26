@@ -44,7 +44,7 @@ export class ReadExplorerPage {
         this.activeDataset = (dsRes && dsRes.success) ? dsRes.activeDataset : null;
         this.totalReads = this.activeDataset ? (this.activeDataset.totalReads || 0) : 0;
 
-        if (!this.activeDataset || !this.activeDataset.isLoaded || this.totalReads === 0) {
+        if (!this.activeDataset || (!this.activeDataset.isLoaded && !this.activeDataset.indexLoaded) || this.totalReads === 0) {
             this.renderEmptyState();
             return;
         }
@@ -193,7 +193,7 @@ export class ReadExplorerPage {
                         </div>
                         <div class="active-ds-indicator" style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-pill); padding: 6px 14px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
                             <span class="status-dot-pulse"></span>
-                            <span>Active Dataset: <strong>${this.escapeHtml(this.activeDataset.name)}</strong> (${totalReads} ${totalReads === 1 ? 'read' : 'reads'})</span>
+                            <span>Active Dataset: <strong>${this.escapeHtml(this.activeDataset.name || this.activeDataset.datasetName || 'Active Dataset')}</strong> (${totalReads} ${totalReads === 1 ? 'read' : 'reads'})</span>
                         </div>
                     </div>
                 </div>
@@ -344,11 +344,11 @@ export class ReadExplorerPage {
                                 Dataset Reads Catalog
                             </h2>
                             <p style="color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 0 0;">
-                                All reads contained in <code>${this.escapeHtml(this.activeDataset.name)}</code>. Click any row or "Inspect Read" to view its sequence and Phred scores.
+                                All reads contained in <code>${this.escapeHtml(this.activeDataset.name || this.activeDataset.datasetName || 'Dataset')}</code>. Click any row or "Inspect Read" to view its sequence and Phred scores.
                             </p>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <a href="/api/export/reads" class="btn-secondary-action" download="reads_${this.activeDataset.name}.csv" style="text-decoration: none;">
+                            <a href="/api/export/reads" class="btn-secondary-action" download="reads_${this.activeDataset.name || this.activeDataset.datasetName || 'dataset'}.csv" style="text-decoration: none;">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                 Export Reads CSV
                             </a>

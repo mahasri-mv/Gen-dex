@@ -544,7 +544,7 @@ export class UploadPage {
 
         let html = '';
         tableDatasets.forEach(ds => {
-            const isActive = ds.active === true;
+            const isActive = ds.active === true || ds.isActive === true;
             const statusBadge = isActive 
                 ? '<span class="badge-active">&#10004; Active</span>' 
                 : '<span class="badge-ready">Ready</span>';

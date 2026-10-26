@@ -37,7 +37,7 @@ export class GenomicAnalyticsPage {
         const dsRes = await api.getDatasets();
         this.activeDataset = (dsRes && dsRes.success) ? dsRes.activeDataset : null;
 
-        if (!this.activeDataset || !this.activeDataset.isLoaded || (this.activeDataset.totalReads || 0) === 0) {
+        if (!this.activeDataset || (!this.activeDataset.isLoaded && !this.activeDataset.indexLoaded) || (this.activeDataset.totalReads || 0) === 0) {
             this.renderEmptyState();
             return;
         }

@@ -59,7 +59,35 @@ class ApiService {
         });
     }
 
+    isFallbackDatasetActive() {
+        if (!this.fallbackActiveId || !this.fallbackDatasets || this.fallbackDatasets.length === 0) return false;
+        if (this.fallbackActiveId === 'demo_report' || this.fallbackActiveId === 'sample' || this.fallbackActiveId === 'extended') {
+            return false;
+        }
+        return this.fallbackDatasets.some(d => d.id === this.fallbackActiveId || d.name === this.fallbackActiveId);
+    }
+
     async request(endpoint, options = {}) {
+        const url = new URL(endpoint, 'http://localhost');
+        const path = url.pathname;
+
+        const genomicAnalysisPaths = [
+            '/api/read-statistics',
+            '/api/extract-read',
+            '/api/find',
+            '/api/reads',
+            '/api/analytics',
+            '/api/composition',
+            '/api/statistics',
+            '/api/status'
+        ];
+
+        // If an uploaded/in-browser dataset is active, execute analysis directly on that dataset
+        if (this.isFallbackDatasetActive() && genomicAnalysisPaths.some(p => path === p || path.startsWith(p + '/'))) {
+            const fallback = this.handleFallbackRequest(endpoint, options);
+            if (fallback !== null) return fallback;
+        }
+
         const headers = options.headers || {};
 
         if (this.csrfToken) {
@@ -151,12 +179,17 @@ class ApiService {
                     backendDatasets.unshift({
                         id: fbDs.id,
                         name: fbDs.name,
+                        datasetName: fbDs.name,
                         source: fbDs.source || "Uploaded File",
                         reads: fbDs.totalReads,
                         totalReads: fbDs.totalReads,
                         symbols: fbDs.totalSymbols,
                         totalSymbols: fbDs.totalSymbols,
                         totalBases: fbDs.totalBases,
+                        totalDnaBases: fbDs.totalBases,
+                        isLoaded: true,
+                        indexLoaded: true,
+                        active: fbDs.id === this.fallbackActiveId || fbDs.name === (this.activeDataset && (this.activeDataset.name || this.activeDataset.datasetName)),
                         isActive: fbDs.id === this.fallbackActiveId || fbDs.name === (this.activeDataset && (this.activeDataset.name || this.activeDataset.datasetName))
                     });
                 }
@@ -167,16 +200,43 @@ class ApiService {
 
         // Ensure active dataset is properly selected and reflected
         if (this.fallbackActiveId) {
-            const activeFb = this.fallbackDatasets ? this.fallbackDatasets.find(d => d.id === this.fallbackActiveId) : null;
+            const activeFb = this.fallbackDatasets ? this.fallbackDatasets.find(d => d.id === this.fallbackActiveId || d.name === this.fallbackActiveId) : null;
             if (activeFb) {
-                this.activeDataset = activeFb.statistics || activeFb;
-                res.activeDataset = this.activeDataset;
+                const combined = {
+                    ...activeFb,
+                    ...(activeFb.statistics || {}),
+                    id: activeFb.id,
+                    name: activeFb.name,
+                    datasetName: activeFb.name,
+                    isLoaded: true,
+                    indexLoaded: true,
+                    totalReads: activeFb.totalReads,
+                    totalBases: activeFb.totalBases,
+                    totalDnaBases: activeFb.totalBases,
+                    reads: activeFb.reads,
+                    headers: activeFb.headers,
+                    qualities: activeFb.qualities
+                };
+                this.activeDataset = combined;
+                res.activeDataset = combined;
+                window.__genedex_active_dataset = combined;
                 res.datasets.forEach(d => {
-                    d.isActive = (d.id === this.fallbackActiveId || d.name === (this.activeDataset.datasetName || this.activeDataset.name));
+                    const isCur = (d.id === this.fallbackActiveId || d.name === combined.name);
+                    d.active = isCur;
+                    d.isActive = isCur;
                 });
             }
         } else if (res.activeDataset) {
             this.activeDataset = res.activeDataset;
+            this.activeDataset.name = this.activeDataset.name || this.activeDataset.datasetName;
+            this.activeDataset.datasetName = this.activeDataset.name;
+            this.activeDataset.isLoaded = true;
+            this.activeDataset.indexLoaded = true;
+            res.datasets.forEach(d => {
+                const isCur = (d.id === this.activeDataset.id || d.name === this.activeDataset.name);
+                d.active = isCur;
+                d.isActive = isCur;
+            });
         }
 
         return res;
@@ -186,15 +246,33 @@ class ApiService {
         this.fallbackActiveId = datasetId;
         try { localStorage.setItem('genedex_active_dataset_id', datasetId); } catch (e) {}
 
-        const matchedFb = this.fallbackDatasets ? this.fallbackDatasets.find(d => d.id === datasetId) : null;
+        const matchedFb = this.fallbackDatasets ? this.fallbackDatasets.find(d => d.id === datasetId || d.name === datasetId) : null;
         if (matchedFb) {
-            this.activeDataset = matchedFb.statistics || matchedFb;
+            const combined = {
+                ...matchedFb,
+                ...(matchedFb.statistics || {}),
+                id: matchedFb.id,
+                name: matchedFb.name,
+                datasetName: matchedFb.name,
+                isLoaded: true,
+                indexLoaded: true,
+                totalReads: matchedFb.totalReads,
+                totalBases: matchedFb.totalBases,
+                totalDnaBases: matchedFb.totalBases,
+                reads: matchedFb.reads,
+                headers: matchedFb.headers,
+                qualities: matchedFb.qualities
+            };
+            this.activeDataset = combined;
+            window.__genedex_active_dataset = combined;
+            await this.getDatasets();
             this.notifyDatasetChange(this.activeDataset);
             return { success: true, activeDataset: this.activeDataset };
         }
 
         const res = await this.post('/api/datasets/active', { datasetId });
         if (res && res.success) {
+            window.__genedex_active_dataset = null;
             await this.getDatasets();
             this.notifyDatasetChange(this.activeDataset);
         }
@@ -516,6 +594,10 @@ class ApiService {
                 if (!this.fallbackDatasets.some(d => d.name === s.name || d.id === s.id)) {
                     this.fallbackDatasets.unshift({
                         ...s,
+                        name: s.name,
+                        datasetName: s.name,
+                        isLoaded: true,
+                        indexLoaded: true,
                         reads: s.reads || s.sampleReads || ["GATTACA"],
                         headers: s.headers || s.sampleHeaders || ["@read0"],
                         qualities: s.qualities || s.sampleQualities || ["IIIIIII"]
@@ -523,8 +605,48 @@ class ApiService {
                 }
             }
             const activeId = localStorage.getItem('genedex_active_dataset_id');
-            if (activeId && this.fallbackDatasets.some(d => d.id === activeId)) {
+            if (activeId && this.fallbackDatasets.some(d => d.id === activeId || d.name === activeId)) {
                 this.fallbackActiveId = activeId;
+            }
+        } catch (e) {}
+
+        // Restore from IndexedDB asynchronously if available
+        try {
+            if (typeof window !== 'undefined' && window.indexedDB) {
+                const req = indexedDB.open('genedex_cache', 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('datasets')) {
+                        db.createObjectStore('datasets', { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = (e) => {
+                    const db = e.target.result;
+                    const tx = db.transaction('datasets', 'readonly');
+                    const getAll = tx.objectStore('datasets').getAll();
+                    getAll.onsuccess = () => {
+                        const cachedList = getAll.result || [];
+                        cachedList.forEach(cached => {
+                            const existing = this.fallbackDatasets.find(d => d.id === cached.id || d.name === cached.name);
+                            if (existing) {
+                                if (cached.reads && (!existing.reads || cached.reads.length > existing.reads.length)) {
+                                    existing.reads = cached.reads;
+                                    existing.headers = cached.headers;
+                                    existing.qualities = cached.qualities;
+                                }
+                            } else {
+                                this.fallbackDatasets.unshift(cached);
+                            }
+                        });
+                        if (this.fallbackActiveId) {
+                            const act = this.fallbackDatasets.find(d => d.id === this.fallbackActiveId || d.name === this.fallbackActiveId);
+                            if (act) {
+                                window.__genedex_active_dataset = act;
+                                this.activeDataset = act;
+                            }
+                        }
+                    };
+                };
             }
         } catch (e) {}
     }
@@ -535,15 +657,19 @@ class ApiService {
             const meta = {
                 id: ds.id,
                 name: ds.name,
+                datasetName: ds.name,
                 source: ds.source || "Uploaded File",
                 totalReads: ds.totalReads,
                 readsCount: ds.totalReads,
                 totalSymbols: ds.totalSymbols,
                 totalBases: ds.totalBases,
+                totalDnaBases: ds.totalBases,
+                isLoaded: true,
+                indexLoaded: true,
                 statistics: ds.statistics,
-                sampleReads: ds.reads ? ds.reads.slice(0, 50) : [],
-                sampleHeaders: ds.headers ? ds.headers.slice(0, 50) : [],
-                sampleQualities: ds.qualities ? ds.qualities.slice(0, 50) : []
+                sampleReads: ds.reads ? ds.reads.slice(0, 100) : [],
+                sampleHeaders: ds.headers ? ds.headers.slice(0, 100) : [],
+                sampleQualities: ds.qualities ? ds.qualities.slice(0, 100) : []
             };
             const filtered = list.filter(d => d.name !== ds.name && d.id !== ds.id);
             filtered.unshift(meta);
@@ -552,10 +678,36 @@ class ApiService {
         } catch (e) {
             console.warn("Could not save to localStorage:", e);
         }
+
+        // Store full dataset (all reads) in IndexedDB for reliable persistence across page reloads
+        try {
+            if (typeof window !== 'undefined' && window.indexedDB) {
+                const req = indexedDB.open('genedex_cache', 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('datasets')) {
+                        db.createObjectStore('datasets', { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = (e) => {
+                    const db = e.target.result;
+                    const tx = db.transaction('datasets', 'readwrite');
+                    tx.objectStore('datasets').put(ds);
+                };
+            }
+        } catch (e) {}
     }
 
     getFallbackActiveDataset() {
-        return this.fallbackDatasets.find(d => d.id === this.fallbackActiveId) || this.fallbackDatasets[0];
+        if (window.__genedex_active_dataset && (!this.fallbackActiveId || window.__genedex_active_dataset.id === this.fallbackActiveId || window.__genedex_active_dataset.name === this.fallbackActiveId)) {
+            return window.__genedex_active_dataset;
+        }
+        const found = (this.fallbackDatasets && this.fallbackDatasets.find(d => d.id === this.fallbackActiveId || d.name === this.fallbackActiveId)) || (this.fallbackDatasets && this.fallbackDatasets[0]);
+        if (found) {
+            window.__genedex_active_dataset = found;
+            return found;
+        }
+        return { name: 'demo_report.fastq', datasetName: 'demo_report.fastq', reads: ['GATTACA'], isLoaded: true, indexLoaded: true };
     }
 
     handleFallbackRequest(endpoint, options = {}) {
@@ -700,15 +852,21 @@ class ApiService {
                 const newDs = {
                     id: "ds_" + Math.random().toString(16).substring(2, 10),
                     name: name,
+                    datasetName: name,
                     source: "Uploaded File",
                     totalReads: readCount,
                     totalSymbols: totalBases + readCount,
                     totalBases: totalBases,
+                    totalDnaBases: totalBases,
+                    isLoaded: true,
+                    indexLoaded: true,
                     reads: reads.length > 0 ? reads : ["GATTACA"],
                     headers: headers.length > 0 ? headers : ["@read0"],
                     qualities: quals.length > 0 ? quals : ["IIIIIII"],
                     statistics: {
+                        isLoaded: true,
                         indexLoaded: true,
+                        name: name,
                         datasetName: name,
                         datasetSource: "Uploaded File",
                         totalReads: readCount,
@@ -722,6 +880,7 @@ class ApiService {
                     }
                 };
 
+                window.__genedex_active_dataset = newDs;
                 this.fallbackDatasets.unshift(newDs);
                 this.fallbackActiveId = newDs.id;
                 this.activeDataset = newDs;
@@ -735,11 +894,28 @@ class ApiService {
             try { body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body || {}; } catch (e) {}
             const targetId = body.datasetId || body.id;
             if (targetId) {
-                const found = this.fallbackDatasets.find(d => d.id === targetId);
+                const found = this.fallbackDatasets.find(d => d.id === targetId || d.name === targetId);
                 if (found) {
                     this.fallbackActiveId = found.id;
-                    this.activeDataset = found;
-                    return { success: true, message: "Switched active dataset to " + found.name, activeDataset: found.statistics };
+                    const combined = {
+                        ...found,
+                        ...(found.statistics || {}),
+                        id: found.id,
+                        name: found.name,
+                        datasetName: found.name,
+                        isLoaded: true,
+                        indexLoaded: true,
+                        totalReads: found.totalReads,
+                        totalBases: found.totalBases,
+                        totalDnaBases: found.totalBases,
+                        reads: found.reads,
+                        headers: found.headers,
+                        qualities: found.qualities
+                    };
+                    this.activeDataset = combined;
+                    window.__genedex_active_dataset = combined;
+                    try { localStorage.setItem('genedex_active_dataset_id', found.id); } catch (e) {}
+                    return { success: true, message: "Switched active dataset to " + found.name, activeDataset: combined };
                 }
             }
             return { success: true, activeDataset: this.getFallbackActiveDataset().statistics };
@@ -751,19 +927,23 @@ class ApiService {
             const active = this.getFallbackActiveDataset();
             const matches = [];
 
-            if (pattern) {
-                active.reads.forEach((readSeq, readIdx) => {
+            if (pattern && active.reads) {
+                for (let readIdx = 0; readIdx < active.reads.length; readIdx++) {
+                    const readSeq = active.reads[readIdx];
                     let pos = readSeq.indexOf(pattern);
                     while (pos !== -1) {
                         matches.push({
                             readIndex: readIdx,
                             offsetInRead: pos,
-                            globalPosition: pos,
-                            pattern: pattern
+                            globalPosition: (readIdx * 250) + pos,
+                            pattern: pattern,
+                            accepted: true
                         });
+                        if (matches.length >= 500) break;
                         pos = readSeq.indexOf(pattern, pos + 1);
                     }
-                });
+                    if (matches.length >= 500) break;
+                }
             }
 
             return {
@@ -771,121 +951,273 @@ class ApiService {
                 pattern: pattern,
                 matchCount: matches.length,
                 matches: matches,
+                candidates: matches,
                 rarestChar: pattern.length > 0 ? pattern[0] : 'A',
                 rarestCharIndexInPattern: 0,
-                rarestCharTotalCount: 50,
-                executionTimeNanos: 350000
+                rarestCharTotalCount: matches.length,
+                executionTimeMicros: 420
             };
         }
 
-        // 8. Read Record & Explorer
-        if (path.includes('/reads/') && path.endsWith('/record')) {
-            const parts = path.split('/');
-            const readIdStr = parts[parts.length - 2];
+        // 8. Single Read Extraction (/api/extract-read)
+        if (path === '/api/extract-read') {
             const active = this.getFallbackActiveDataset();
-            let idx = parseInt(readIdStr, 10);
-            if (isNaN(idx) || idx < 0 || idx >= active.reads.length) idx = 0;
+            let idx = parseInt(params.get('k') || params.get('readIndex') || '0', 10);
+            if (isNaN(idx) || idx < 0) idx = 0;
+            const readsLen = active.reads ? active.reads.length : 1;
+            if (idx >= readsLen) idx = readsLen - 1;
+            const seq = (active.reads && active.reads[idx]) ? active.reads[idx] : "GATTACA";
+            return { success: true, readIndex: idx, sequence: seq, length: seq.length };
+        }
 
-            const seq = active.reads[idx] || "GATTACA";
-            const hdr = (active.headers && active.headers[idx]) ? active.headers[idx] : "@read" + idx;
+        // 9. Read Statistics (/api/read-statistics and /record)
+        if (path === '/api/read-statistics' || (path.includes('/reads/') && path.endsWith('/record'))) {
+            let idx = 0;
+            const active = this.getFallbackActiveDataset();
+
+            if (path.includes('/reads/') && path.endsWith('/record')) {
+                const parts = path.split('/');
+                const readIdStr = parts[parts.length - 2];
+                idx = parseInt(readIdStr, 10);
+            } else {
+                const qStr = params.get('query') || params.get('k') || params.get('readId') || '0';
+                if (qStr.startsWith('@')) {
+                    const cleanHdr = qStr.trim();
+                    const foundIdx = active.headers ? active.headers.findIndex(h => h.startsWith(cleanHdr) || cleanHdr.startsWith(h)) : -1;
+                    idx = foundIdx !== -1 ? foundIdx : 0;
+                } else {
+                    idx = parseInt(qStr, 10);
+                }
+            }
+            if (isNaN(idx) || idx < 0) idx = 0;
+            const readsLen = active.reads ? active.reads.length : 1;
+            if (idx >= readsLen) idx = readsLen - 1;
+
+            const seq = (active.reads && active.reads[idx]) ? active.reads[idx] : "GATTACA";
+            const len = seq.length;
+            const rawHdr = (active.headers && active.headers[idx]) ? active.headers[idx] : "@read" + idx;
+            const hdr = rawHdr.startsWith('@') ? rawHdr : '@' + rawHdr;
             const qual = (active.qualities && active.qualities[idx]) ? active.qualities[idx] : seq.replace(/./g, 'I');
+
+            let g = 0, c = 0, a = 0, t = 0, n = 0;
+            for (let i = 0; i < len; i++) {
+                const ch = seq[i];
+                if (ch === 'G') g++;
+                else if (ch === 'C') c++;
+                else if (ch === 'A') a++;
+                else if (ch === 'T') t++;
+                else n++;
+            }
+            const gcPct = len > 0 ? Math.round(((g + c) / len) * 10000) / 100 : 45.0;
+
             const phreds = [];
-            let sum = 0;
+            let phredSum = 0;
             for (let i = 0; i < qual.length; i++) {
                 const q = Math.max(0, qual.charCodeAt(i) - 33);
                 phreds.push(q);
-                sum += q;
+                phredSum += q;
             }
+            const avgPhred = qual.length > 0 ? Math.round((phredSum / qual.length) * 10) / 10 : 36.0;
 
-            return {
-                success: true,
-                readId: String(idx),
+            const readObj = {
                 readIndex: idx,
                 header: hdr,
+                startPos: idx * 250,
+                endPos: idx * 250 + len,
+                length: len,
                 sequence: seq,
-                plusLine: "+",
+                gcPercentage: gcPct,
+                baseCounts: { A: a, C: c, G: g, T: t, N: n },
                 quality: qual,
+                plusLine: "+",
                 rawRecord: `${hdr}\n${seq}\n+\n${qual}`,
-                avgPhredScore: qual.length > 0 ? Math.round(sum / qual.length * 10) / 10 : 35.0,
-                phredScores: phreds
+                phredScores: phreds,
+                avgPhredScore: avgPhred
             };
+            return { success: true, read: readObj, readStatistics: readObj, readId: String(idx) };
         }
 
-        // 9. Reads Catalog Listing
+        // 10. Reads Catalog Listing (/api/reads)
         if (path === '/api/reads') {
             const page = parseInt(params.get('page') || '1', 10);
             const pageSize = parseInt(params.get('pageSize') || '10', 10);
+            const query = (params.get('query') || '').trim().toLowerCase();
             const active = this.getFallbackActiveDataset();
-            const list = active.reads.slice((page - 1) * pageSize, page * pageSize).map((r, i) => {
-                const actualIdx = (page - 1) * pageSize + i;
-                const hdr = (active.headers && active.headers[actualIdx]) ? active.headers[actualIdx] : "@read" + actualIdx;
+            const totalReads = active.totalReads || (active.reads ? active.reads.length : 1);
+
+            let matchingIndices = [];
+            if (query) {
+                const maxScan = active.reads ? active.reads.length : 0;
+                for (let i = 0; i < maxScan; i++) {
+                    const h = (active.headers && active.headers[i]) ? active.headers[i].toLowerCase() : `@read${i}`;
+                    if (h.includes(query) || String(i) === query) {
+                        matchingIndices.push(i);
+                    }
+                }
+            } else {
+                const start = (page - 1) * pageSize;
+                const end = Math.min(start + pageSize, totalReads);
+                for (let i = start; i < end; i++) {
+                    matchingIndices.push(i);
+                }
+            }
+
+            const effectiveTotal = query ? matchingIndices.length : totalReads;
+            const sliceIndices = query ? matchingIndices.slice((page - 1) * pageSize, page * pageSize) : matchingIndices;
+
+            const list = sliceIndices.map(actualIdx => {
+                const r = (active.reads && active.reads[actualIdx]) ? active.reads[actualIdx] : "GATTACA";
+                const rawHdr = (active.headers && active.headers[actualIdx]) ? active.headers[actualIdx] : "@read" + actualIdx;
+                const hdr = rawHdr.startsWith('@') ? rawHdr : '@' + rawHdr;
+                let gc = 0;
+                for (let ch of r) { if (ch === 'G' || ch === 'C') gc++; }
                 return {
+                    id: String(actualIdx),
                     readIndex: actualIdx,
                     header: hdr,
                     length: r.length,
-                    startPos: actualIdx * 350,
-                    endPos: actualIdx * 350 + r.length,
-                    gcPercentage: 48.3
+                    startPos: actualIdx * 250,
+                    endPos: actualIdx * 250 + r.length,
+                    gcPercentage: r.length > 0 ? Math.round((gc / r.length) * 10000) / 100 : 47.5
                 };
             });
+
             return {
                 success: true,
                 reads: list,
-                totalReads: active.totalReads,
+                totalReads: effectiveTotal,
                 page: page,
                 pageSize: pageSize,
-                totalPages: Math.ceil(active.totalReads / pageSize)
+                totalPages: Math.max(1, Math.ceil(effectiveTotal / pageSize))
             };
         }
 
-        // 10. Analytics & Composition
+        // 11. Analytics & Composition
         if (path === '/api/analytics') {
             const active = this.getFallbackActiveDataset();
-            const stats = active.statistics;
-            const baseCounts = stats.baseCounts || { A: 589447, C: 590637, G: 629650, T: 715545, N: 0 };
+            const stats = active.statistics || {};
+            const baseCounts = stats.baseCounts || { A: 1000, C: 1000, G: 1000, T: 1000, N: 0 };
+            const total = stats.totalDnaBases || active.totalBases || 4000;
             const compList = [
-                { symbol: 'A', count: baseCounts.A || 0, percentage: 23.34 },
-                { symbol: 'C', count: baseCounts.C || 0, percentage: 23.39 },
-                { symbol: 'G', count: baseCounts.G || 0, percentage: 24.93 },
-                { symbol: 'T', count: baseCounts.T || 0, percentage: 28.34 },
-                { symbol: 'N', count: baseCounts.N || 0, percentage: 0.00 }
+                { symbol: 'A', count: baseCounts.A || 0, percentage: total > 0 ? Math.round(((baseCounts.A || 0) / total) * 10000) / 100 : 25 },
+                { symbol: 'C', count: baseCounts.C || 0, percentage: total > 0 ? Math.round(((baseCounts.C || 0) / total) * 10000) / 100 : 25 },
+                { symbol: 'G', count: baseCounts.G || 0, percentage: total > 0 ? Math.round(((baseCounts.G || 0) / total) * 10000) / 100 : 25 },
+                { symbol: 'T', count: baseCounts.T || 0, percentage: total > 0 ? Math.round(((baseCounts.T || 0) / total) * 10000) / 100 : 25 },
+                { symbol: 'N', count: baseCounts.N || 0, percentage: total > 0 ? Math.round(((baseCounts.N || 0) / total) * 10000) / 100 : 0 }
             ];
+
             const lengthDist = {};
-            active.reads.forEach(r => {
-                lengthDist[r.length] = (lengthDist[r.length] || 0) + 1;
-            });
+            if (active.reads) {
+                for (let i = 0; i < active.reads.length; i++) {
+                    const l = active.reads[i].length;
+                    lengthDist[l] = (lengthDist[l] || 0) + 1;
+                }
+            }
+            if (Object.keys(lengthDist).length === 0) {
+                lengthDist[stats.avgReadLength || 250] = active.totalReads || 1;
+            }
+
+            let totalPhred = 0;
+            let totalBasesWithQual = 0;
+            let q30Bases = 0;
+            if (active.qualities && active.qualities.length > 0) {
+                const sampleLen = Math.min(active.qualities.length, 1000);
+                for (let i = 0; i < sampleLen; i++) {
+                    const qStr = active.qualities[i];
+                    for (let j = 0; j < qStr.length; j++) {
+                        const q = qStr.charCodeAt(j) - 33;
+                        totalPhred += q;
+                        totalBasesWithQual++;
+                        if (q >= 30) q30Bases++;
+                    }
+                }
+            }
+            const meanPhred = totalBasesWithQual > 0 ? Math.round((totalPhred / totalBasesWithQual) * 10) / 10 : 36.2;
+            const q30Pct = totalBasesWithQual > 0 ? Math.round((q30Bases / totalBasesWithQual) * 1000) / 10 : 88.5;
 
             return {
                 success: true,
-                overallGcPercentage: stats.overallGcPercentage || 48.32,
+                overallGcPercentage: stats.overallGcPercentage || 47.5,
                 composition: compList,
-                lengthDistribution: Object.keys(lengthDist).length > 0 ? lengthDist : { 345: 1 },
-                readProfiles: active.reads.slice(0, 10).map((r, i) => ({
-                    readIndex: i,
-                    header: (active.headers && active.headers[i]) ? active.headers[i] : "@read" + i,
-                    length: r.length,
-                    gcPercentage: 48.3,
-                    sequencePreview: r.substring(0, 20) + "..."
-                }))
+                lengthDistribution: lengthDist,
+                avgReadLength: stats.avgReadLength || 250,
+                qualitySummary: { meanPhredScore: meanPhred, q30Percentage: q30Pct },
+                readProfiles: active.reads ? active.reads.slice(0, 100).map((r, i) => {
+                    const rawHdr = (active.headers && active.headers[i]) ? active.headers[i] : "@read" + i;
+                    let gc = 0;
+                    for (let ch of r) { if (ch === 'G' || ch === 'C') gc++; }
+                    return {
+                        readIndex: i,
+                        header: rawHdr.startsWith('@') ? rawHdr : '@' + rawHdr,
+                        length: r.length,
+                        gcPercentage: r.length > 0 ? Math.round((gc / r.length) * 10000) / 100 : 47.5,
+                        sequencePreview: r.substring(0, 30) + (r.length > 30 ? "..." : "")
+                    };
+                }) : []
             };
         }
 
         if (path === '/api/composition') {
             const active = this.getFallbackActiveDataset();
-            const stats = active.statistics;
-            const b = stats.baseCounts || { A: 6, C: 2, G: 2, T: 4, N: 0 };
-            const total = stats.totalDnaBases || 14;
+            const stats = active.statistics || {};
+
+            let seqToAnalyze = null;
+            if (params.has('readIndex') || params.has('readId')) {
+                const rIdx = parseInt(params.get('readIndex') || params.get('readId') || '0', 10);
+                if (active.reads && active.reads[rIdx]) {
+                    seqToAnalyze = active.reads[rIdx];
+                }
+            } else if (params.has('s') && params.has('e')) {
+                const s = parseInt(params.get('s') || '0', 10);
+                const e = parseInt(params.get('e') || '0', 10);
+                if (active.reads) {
+                    let fullSeq = active.reads.join('');
+                    seqToAnalyze = fullSeq.substring(Math.max(0, s), Math.min(e, fullSeq.length));
+                }
+            }
+
+            if (seqToAnalyze != null) {
+                let a = 0, c = 0, g = 0, t = 0, n = 0;
+                for (let i = 0; i < seqToAnalyze.length; i++) {
+                    const ch = seqToAnalyze[i];
+                    if (ch === 'A') a++;
+                    else if (ch === 'C') c++;
+                    else if (ch === 'G') g++;
+                    else if (ch === 'T') t++;
+                    else n++;
+                }
+                const total = seqToAnalyze.length;
+                const gc = total > 0 ? Math.round(((g + c) / total) * 10000) / 100 : 0;
+                return {
+                    success: true,
+                    totalDnaBases: total,
+                    gcPercentage: gc,
+                    atPercentage: Math.round((100 - gc) * 100) / 100,
+                    counts: { A: a, C: c, G: g, T: t, N: n },
+                    percentages: {
+                        A: total > 0 ? Math.round((a / total) * 10000) / 100 : 0,
+                        C: total > 0 ? Math.round((c / total) * 10000) / 100 : 0,
+                        G: total > 0 ? Math.round((g / total) * 10000) / 100 : 0,
+                        T: total > 0 ? Math.round((t / total) * 10000) / 100 : 0,
+                        N: total > 0 ? Math.round((n / total) * 10000) / 100 : 0
+                    }
+                };
+            }
+
+            const b = stats.baseCounts || { A: 1000, C: 1000, G: 1000, T: 1000, N: 0 };
+            const total = stats.totalDnaBases || active.totalBases || 4000;
+            const gc = stats.overallGcPercentage || 47.5;
             return {
                 success: true,
                 totalDnaBases: total,
-                gcPercentage: stats.overallGcPercentage || 48.32,
-                atPercentage: Math.round((100 - (stats.overallGcPercentage || 48.32)) * 100) / 100,
-                counts: { A: b.A, C: b.C, G: b.G, T: b.T, N: b.N || 0 },
+                gcPercentage: gc,
+                atPercentage: Math.round((100 - gc) * 100) / 100,
+                counts: { A: b.A || 0, C: b.C || 0, G: b.G || 0, T: b.T || 0, N: b.N || 0 },
                 percentages: {
-                    A: Math.round((b.A / total) * 10000) / 100,
-                    C: Math.round((b.C / total) * 10000) / 100,
-                    G: Math.round((b.G / total) * 10000) / 100,
-                    T: Math.round((b.T / total) * 10000) / 100,
+                    A: total > 0 ? Math.round(((b.A || 0) / total) * 10000) / 100 : 25,
+                    C: total > 0 ? Math.round(((b.C || 0) / total) * 10000) / 100 : 25,
+                    G: total > 0 ? Math.round(((b.G || 0) / total) * 10000) / 100 : 25,
+                    T: total > 0 ? Math.round(((b.T || 0) / total) * 10000) / 100 : 25,
                     N: 0
                 }
             };
@@ -893,7 +1225,31 @@ class ApiService {
 
         if (path === '/api/status' || path === '/api/statistics') {
             const active = this.getFallbackActiveDataset();
-            return { success: true, status: "online", ...active.statistics };
+            const stats = active.statistics || {};
+            return {
+                success: true,
+                indexLoaded: true,
+                isLoaded: true,
+                status: "online",
+                name: active.name,
+                datasetName: active.name,
+                datasetSource: active.source || "Uploaded File",
+                totalReads: active.totalReads,
+                totalSymbols: active.totalSymbols,
+                totalBases: active.totalBases,
+                totalDnaBases: active.totalBases,
+                statistics: {
+                    ...stats,
+                    name: active.name,
+                    datasetName: active.name,
+                    isLoaded: true,
+                    indexLoaded: true,
+                    totalReads: active.totalReads,
+                    totalBases: active.totalBases,
+                    totalDnaBases: active.totalBases
+                },
+                ...stats
+            };
         }
 
         return null;

@@ -39,12 +39,13 @@ export class DatasetPill {
 
         let optionsHtml = '';
         this.datasets.forEach(ds => {
-            const isActive = ds.active;
+            const isActive = ds.active || ds.isActive;
+            const desc = ds.description || (ds.reads ? `${ds.reads.toLocaleString()} reads` : 'FASTQ dataset');
             optionsHtml += `
                 <div class="dataset-option-item ${isActive ? 'active' : ''}" data-id="${ds.id}">
                     <div class="ds-opt-info">
                         <span class="ds-opt-name">${ds.name}</span>
-                        <span class="ds-opt-desc">${ds.description}</span>
+                        <span class="ds-opt-desc">${desc}</span>
                     </div>
                     ${isActive ? '<span class="ds-opt-badge">&#10004; Active</span>' : ''}
                 </div>

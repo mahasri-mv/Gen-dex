@@ -66,7 +66,7 @@ export class ReportsPage {
         if (dsRes && dsRes.success) {
             this.activeDataset = dsRes.activeDataset;
             this.availableDatasets = dsRes.datasets || [];
-            const activeDs = this.availableDatasets.find(d => d.active) || this.availableDatasets[0];
+            const activeDs = this.availableDatasets.find(d => d.active || d.isActive) || this.availableDatasets[0];
             this.selectedDatasetId = activeDs ? activeDs.id : (this.activeDataset?.id || 'demo_report');
         }
 
@@ -132,7 +132,7 @@ export class ReportsPage {
 
     renderView() {
         const hasMultipleDatasets = this.availableDatasets.length >= 2;
-        const activeName = this.activeDataset ? (this.activeDataset.name || 'Active Dataset') : 'No Dataset Selected';
+        const activeName = this.activeDataset ? (this.activeDataset.name || this.activeDataset.datasetName || 'Active Dataset') : 'No Dataset Selected';
 
         this.container.innerHTML = `
             <div class="page-container reports-page">
@@ -650,12 +650,12 @@ export class ReportsPage {
                 researcher: this.researcher,
                 institution: this.institution,
                 date: this.reportDate,
-                datasetName: this.activeDataset?.name || 'Dataset.fastq',
+                datasetName: this.activeDataset?.name || this.activeDataset?.datasetName || 'Dataset.fastq',
                 purpose: this.purpose,
                 notes: this.notes,
                 sections: {
                     summary: this.includeSummary ? {
-                        filename: this.activeDataset?.name || 'dataset.fastq',
+                        filename: this.activeDataset?.name || this.activeDataset?.datasetName || 'dataset.fastq',
                         totalReads: stats.totalReads || 1,
                         totalBases: stats.totalDnaBases || stats.totalIndexedSymbols || 0,
                         avgLength: stats.avgReadLength || 0,
