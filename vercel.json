@@ -1,14 +1,13 @@
 {
-  "version": 2,
-  "cleanUrls": true,
+  "cleanUrls": false,
   "rewrites": [
     {
       "source": "/",
-      "destination": "/src/main/resources/web/index.html"
+      "destination": "/public/index.html"
     },
     {
       "source": "/(.*)",
-      "destination": "/src/main/resources/web/$1"
+      "destination": "/public/$1"
     }
   ]
 }

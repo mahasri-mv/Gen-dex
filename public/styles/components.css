@@ -1,0 +1,446 @@
+/* =============================================================================
+   GeneDex Reusable Components Styling
+   ============================================================================= */
+
+/* Universal Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+/* =============================================================================
+   Active Dataset Pill & Dropdown
+   ============================================================================= */
+.dataset-pill-wrapper {
+    position: relative;
+}
+
+.dataset-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-heading);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.dataset-pill-btn:hover {
+    border-color: var(--brand-green);
+    background: var(--bg-surface-alt);
+}
+
+.dataset-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand-green);
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+    flex-shrink: 0;
+}
+
+.dataset-pill-label {
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dataset-caret {
+    font-size: 0.7rem;
+    color: var(--text-subtle);
+    transition: transform 0.2s ease;
+}
+
+.dataset-pill-wrapper.open .dataset-caret {
+    transform: rotate(180deg);
+}
+
+.dataset-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 320px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-dropdown);
+    padding: 12px;
+    display: none;
+    z-index: 1050;
+    animation: fadeInDropdown 0.15s ease-out;
+}
+
+.dataset-pill-wrapper.open .dataset-dropdown-menu {
+    display: block;
+}
+
+@keyframes fadeInDropdown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-header-title {
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 4px 8px 8px 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+}
+
+.dataset-option-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    margin-bottom: 4px;
+}
+
+.dataset-option-item:hover {
+    background: var(--bg-surface-alt);
+}
+
+.dataset-option-item.active {
+    background: var(--brand-green-light);
+    border: 1px solid var(--brand-green-border);
+}
+
+.ds-opt-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.ds-opt-name {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ds-opt-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.ds-opt-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--brand-green);
+    margin-left: 8px;
+}
+
+/* =============================================================================
+   User Avatar Menu
+   ============================================================================= */
+.avatar-menu-wrapper {
+    position: relative;
+}
+
+.avatar-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--brand-green-light);
+    border: 1px solid var(--brand-green-border);
+    color: var(--brand-green);
+    font-weight: 800;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.avatar-btn:hover {
+    transform: scale(1.05);
+    border-color: var(--brand-green);
+}
+
+.avatar-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 250px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-dropdown);
+    padding: 10px;
+    display: none;
+    z-index: 1050;
+}
+
+.avatar-menu-wrapper.open .avatar-dropdown-menu {
+    display: block;
+}
+
+.user-profile-header {
+    padding: 6px 10px 10px 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-display-name {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-display-email {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.avatar-menu-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 6px 0;
+}
+
+.avatar-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-body);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    width: 100%;
+    text-align: left;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    margin-bottom: 2px;
+}
+
+.avatar-menu-item:hover {
+    background: var(--bg-surface-alt);
+    color: var(--text-heading);
+}
+
+.avatar-menu-item.danger {
+    color: #dc2626;
+}
+
+.avatar-menu-item.danger:hover {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+/* Minimalist Auth Navbar */
+.app-navbar.app-navbar-auth {
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.auth-header-links {
+    display: flex;
+    align-items: center;
+}
+
+.auth-switch-text {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+}
+
+.auth-link-pill {
+    margin-left: 8px;
+    display: inline-block;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--brand-green);
+    background: rgba(5, 150, 105, 0.08);
+    border: 1px solid rgba(5, 150, 105, 0.2);
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.auth-link-pill:hover {
+    background: var(--brand-green);
+    color: #ffffff;
+}
+
+/* =============================================================================
+   Stat Cards & Generic Surfaces
+   ============================================================================= */
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 24px;
+    transition: var(--transition);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-card-hover);
+    border-color: #cbd5e1;
+}
+
+/* =============================================================================
+   Floating Toast Notifications
+   ============================================================================= */
+.toast-container {
+    position: fixed;
+    top: 76px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    min-width: 300px;
+    max-width: 420px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-dropdown);
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    animation: slideInToast 0.25s ease-out;
+}
+
+@keyframes slideInToast {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.toast-icon {
+    font-size: 1.1rem;
+    margin-top: 2px;
+}
+
+.toast-content {
+    flex: 1;
+}
+
+.toast-title {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--text-heading);
+}
+
+.toast-message {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.toast.success { border-left: 4px solid var(--brand-green); }
+.toast.error { border-left: 4px solid var(--brand-rose); }
+.toast.info { border-left: 4px solid var(--brand-blue); }
+
+/* =============================================================================
+   Modal Dialogs
+   ============================================================================= */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal-backdrop.open {
+    display: flex;
+}
+
+.modal-dialog {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-modal);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: scaleModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scaleModal {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-heading);
+}
+
+.modal-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.modal-close-btn:hover {
+    background: var(--bg-surface-alt);
+    color: var(--text-heading);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-page);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}

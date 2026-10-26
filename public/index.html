@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeneDex — Compressed Genomic Sequence Indexing</title>
+    <meta name="description" content="Compressed Genomic Sequence Indexing Using a Wavelet Tree + FM-Index over raw FASTQ reads.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'><path d='M10 6C14 10 22 14 26 18C30 22 22 26 18 30' stroke='%23d97706' stroke-width='3.2' stroke-linecap='round'/><path d='M26 6C22 10 14 14 10 18C6 22 14 26 18 30' stroke='%23059669' stroke-width='3.2' stroke-linecap='round'/></svg>">
+    
+    <!-- Design System & Modular Stylesheets -->
+    <link rel="stylesheet" href="styles/variables.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/pages.css">
+</head>
+<body>
+
+    <!-- Sticky Navigation Bar Mount -->
+    <div id="navbar-root"></div>
+
+    <!-- Main View Mount (Managed by Central Router) -->
+    <main id="app-view" class="app-main-layout">
+        <!-- Rendered dynamically by active route page -->
+    </main>
+
+    <!-- Floating Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Central Application Router & Controller -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>

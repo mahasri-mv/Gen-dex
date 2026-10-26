@@ -2061,6 +2061,9 @@ public class WebServer {
             String contentType = "text/html; charset=UTF-8";
 
             Path localPath = Paths.get("src", "main", "resources", "web", path.startsWith("/") ? path.substring(1) : path);
+            if (!Files.exists(localPath) || Files.isDirectory(localPath)) {
+                localPath = Paths.get("public", path.startsWith("/") ? path.substring(1) : path);
+            }
             if (Files.exists(localPath) && !Files.isDirectory(localPath)) {
                 content = Files.readAllBytes(localPath);
             } else {
